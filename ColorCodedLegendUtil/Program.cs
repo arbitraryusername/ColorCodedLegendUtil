@@ -1,3 +1,4 @@
+using ColorCodedLegendUtil.Components;
 using ColorCodedLegendUtil.Data;
 using ColorCodedLegendUtil.DTO;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,13 @@ using System.Text;
 
 // Top-level statements only below
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpClient("ServerAPI", client =>
+{
+    // For local dev, you might do:
+    client.BaseAddress = new Uri("https://localhost:7166/");
+    // or whichever port your app is actually using
+});
 
 // 1. EF Core (SQLite)
 builder.Services.AddDbContext<MyDbContext>(options =>
@@ -37,12 +45,14 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<MyDbContext>();
     db.Database.EnsureCreated();
+
+    // TODO: add seed logic for the starting images
     // seed if needed
 }
 
 // Minimal APIs
 // Endpoint #1: Get all image names
-app.MapGet("/api/images", async (IImageRepository repo) =>
+app.MapGet("api/images", async (IImageRepository repo) =>
 {
     var all = await repo.GetAllAsync();
     // Return a list of just the names (strings)
@@ -50,7 +60,7 @@ app.MapGet("/api/images", async (IImageRepository repo) =>
 });
 
 // Endpoint #2: Get a specific image file from wwwroot/images/
-app.MapGet("/api/images/{imageName}", async (string imageName, IWebHostEnvironment env) =>
+app.MapGet("api/images/{imageName}", async (string imageName, IWebHostEnvironment env) =>
 {
     var fullPath = Path.Combine(env.WebRootPath, "images", imageName);
     if (!File.Exists(fullPath))
@@ -67,7 +77,7 @@ app.MapGet("/api/images/{imageName}", async (string imageName, IWebHostEnvironme
 });
 
 // Endpoint #3: Process a click, generate & return an SVG overlay
-app.MapPost("/api/images/{imageName}/click", async (
+app.MapPost("api/images/{imageName}/click", async (
     string imageName,
     ImageClickRequest click,
     IImageRepository repo,
@@ -131,7 +141,7 @@ app.UseStaticFiles();
 app.UseAntiforgery();
 
 // Map Razor Components
-app.MapRazorComponents<Program>()
+app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
 
 

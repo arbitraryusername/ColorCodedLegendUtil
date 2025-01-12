@@ -1,6 +1,7 @@
 ﻿@page "/"
 @using System.Net.Http.Json
 @inject HttpClient Http
+@inject IHttpClientFactory HttpClientFactory
 
 <h3>Choose an Image</h3>
 
@@ -36,7 +37,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var names = await Http.GetFromJsonAsync<List<string>>("/api/images");
+        var client = HttpClientFactory.CreateClient("ServerAPI");
+        var names = await client.GetFromJsonAsync<List<string>>("api/images");
         if (names is not null)
         {
             ImageNames = names;
@@ -48,7 +50,7 @@
         SelectedImage = e.Value?.ToString();
         if (!string.IsNullOrEmpty(SelectedImage))
         {
-            ImageSrc = $"/api/images/{SelectedImage}";
+            ImageSrc = $"api/images/{SelectedImage}";
             SvgOverlaySrc = null;
         }
     }
@@ -59,7 +61,9 @@
             return;
 
         var coords = new { X = (int)e.OffsetX, Y = (int)e.OffsetY };
-        var response = await Http.PostAsJsonAsync($"/api/images/{SelectedImage}/click", coords);
+
+        var client = HttpClientFactory.CreateClient("ServerAPI");
+        var response = await client.PostAsJsonAsync($"api/images/{SelectedImage}/click", coords);
 
         if (response.IsSuccessStatusCode)
         {
