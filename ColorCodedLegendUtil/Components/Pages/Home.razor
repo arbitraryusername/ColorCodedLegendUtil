@@ -1,7 +1,76 @@
 ﻿@page "/"
+@using System.Net.Http.Json
+@inject HttpClient Http
 
-<PageTitle>Home</PageTitle>
+<h3>Choose an Image</h3>
 
-<h1>Hello, world!</h1>
+<select @onchange="OnImageSelected">
+    <option disabled selected value="">-- Your Images --</option>
+    @foreach (var name in ImageNames)
+    {
+        <option value="@name">@name</option>
+    }
+</select>
 
-Welcome to your new app.
+@if (!string.IsNullOrEmpty(SelectedImage))
+{
+    <div style="position: relative; display: inline-block;">
+        <!-- Base image -->
+        <img src="@ImageSrc"
+             @onclick="OnImageClick"
+             style="position: absolute; left: 0; top: 0;" />
+
+        <!-- SVG overlay (if we have one) -->
+        @if (!string.IsNullOrEmpty(SvgOverlaySrc))
+        {
+            <img src="@SvgOverlaySrc" style="position: absolute; left: 0; top: 0;" />
+        }
+    </div>
+}
+
+@code {
+    private List<string> ImageNames = new();
+    private string? SelectedImage;
+    private string? ImageSrc;
+    private string? SvgOverlaySrc;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var names = await Http.GetFromJsonAsync<List<string>>("/api/images");
+        if (names is not null)
+        {
+            ImageNames = names;
+        }
+    }
+
+    private async Task OnImageSelected(ChangeEventArgs e)
+    {
+        SelectedImage = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(SelectedImage))
+        {
+            ImageSrc = $"/api/images/{SelectedImage}";
+            SvgOverlaySrc = null;
+        }
+    }
+
+    private async Task OnImageClick(MouseEventArgs e)
+    {
+        if (string.IsNullOrEmpty(SelectedImage))
+            return;
+
+        var coords = new { X = (int)e.OffsetX, Y = (int)e.OffsetY };
+        var response = await Http.PostAsJsonAsync($"/api/images/{SelectedImage}/click", coords);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var svgBytes = await response.Content.ReadAsByteArrayAsync();
+            var base64Svg = Convert.ToBase64String(svgBytes);
+            SvgOverlaySrc = $"data:image/svg+xml;base64,{base64Svg}";
+        }
+        else
+        {
+            // handle error if needed
+            SvgOverlaySrc = null;
+        }
+    }
+}
