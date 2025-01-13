@@ -191,7 +191,7 @@ app.MapPost("api/images/{imageName}/click", async (
         return (max - min) < threshold;
     }
 
-    bool isGray = IsGray(pixelColor);
+    bool isGray = false; // IsGray(pixelColor);
 
     // Start building the SVG
     var sb = new StringBuilder();
