@@ -1,10 +1,13 @@
 using ColorCodedLegendUtil.Components;
 using ColorCodedLegendUtil.Data;
 using ColorCodedLegendUtil.DTO;
+using ColorCodedLegendUtil.JSON;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 // Top-level statements only below
 var builder = WebApplication.CreateBuilder(args);
@@ -44,10 +47,73 @@ if (!app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<MyDbContext>();
+    var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
+
     db.Database.EnsureCreated();
 
-    // TODO: add seed logic for the starting images
-    // seed if needed
+    // Check if the repository is empty, seed with data if it's empty
+    if (!db.ImageRecords.Any())
+    {
+        var imagesPath = Path.Combine(env.WebRootPath, "images");
+        var seedFilePath = Path.Combine(env.WebRootPath, "legend_bounding_boxes_seed_data.json");
+
+        if (Directory.Exists(imagesPath) && File.Exists(seedFilePath))
+        {
+            // Helper method to check for supported image formats
+            bool IsSupportedImage(string filePath)
+            {
+                var supportedExtensions = new[] { ".png", ".jpg", ".jpeg", ".gif", ".bmp" };
+                var extension = Path.GetExtension(filePath).ToLowerInvariant();
+                return supportedExtensions.Contains(extension);
+            }
+
+            // Read and deserialize JSON seed data
+            var jsonContent = await File.ReadAllTextAsync(seedFilePath);
+            var seedData = JsonSerializer.Deserialize<LegendBBoxSeedData>(jsonContent, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            var legendBoxDict = seedData?.Data.ToDictionary(entry => entry.FileName, entry => entry.LegendBBox);
+
+            // Get all image files in the images directory and filter out unsupported formats
+            var imageFiles = Directory.GetFiles(imagesPath)
+                                      .Where(file => IsSupportedImage(file))
+                                      .ToList();
+
+            foreach (var filePath in imageFiles)
+            {
+                var fileName = Path.GetFileName(filePath);
+                if (legendBoxDict != null && legendBoxDict.TryGetValue(fileName, out var bbox) && bbox.Length == 4)
+                {
+                    var record = new ImageRecord
+                    {
+                        Name = fileName,
+                        X1 = bbox[0],
+                        Y1 = bbox[1],
+                        X2 = bbox[2],
+                        Y2 = bbox[3]
+                    };
+                    db.ImageRecords.Add(record);
+                }
+                else
+                {
+                    // Handle cases where bounding box data is missing or invalid
+                    var record = new ImageRecord
+                    {
+                        Name = fileName,
+                    };
+                    db.ImageRecords.Add(record);
+                }
+            }
+
+            db.SaveChanges();
+        }
+        else
+        {
+            // Optionally handle the case where the images directory doesn't exist
+            Console.WriteLine("ERROR! Images directory or JSON seed data not found!");
+        }
+    }
 }
 
 // Minimal APIs

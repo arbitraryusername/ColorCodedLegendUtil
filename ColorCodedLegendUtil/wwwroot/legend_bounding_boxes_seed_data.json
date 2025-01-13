@@ -1,0 +1,40 @@
+{
+  "data": [
+    {
+      "file_name": "max_wind_speed_2_minutes.png",
+      "legend_bbox": [
+        220,
+        1086,
+        1512,
+        1160
+      ]
+    },
+    {
+      "file_name": "visibility_miles.png",
+      "legend_bbox": [
+        886,
+        145,
+        930,
+        606
+      ]
+    },
+    {
+      "file_name": "temperature_at_2m.png",
+      "legend_bbox": [
+        1077,
+        47,
+        1093,
+        795
+      ]
+    },
+    {
+      "file_name": "geopotential_height_500mb.png",
+      "legend_bbox": [
+        1233,
+        58,
+        1252,
+        929
+      ]
+    }
+  ]
+}
