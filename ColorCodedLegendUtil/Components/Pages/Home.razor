@@ -4,7 +4,7 @@
 @* @attribute [StreamRendering] *@
 @using System.Net.Http.Json
 
-<h3>Choose an Image</h3>
+<h5>Choose an image, then click on a colored area on the image. A marker will be placed on the image, and an arrow will point to the corresponding region in the legend.</h5>
 
 <select @bind="SelectedImage">
     <option disabled selected value="">-- Your Images --</option>
@@ -16,11 +16,11 @@
 
 @if (!string.IsNullOrEmpty(SelectedImage))
 {
-    <div style="position: relative; display: inline-block;">
+    <div style="display: inline-block; width: 100vw; overflow: scroll;">
         <!-- Base image -->
         <img src="@ImageSrc"
              @onclick="OnImageClick"
-             style="position: absolute; left: 0; top: 0;" />
+             style="" />
 
         <!-- SVG overlay (if we have one) -->
         @if (!string.IsNullOrEmpty(SvgOverlaySrc))
