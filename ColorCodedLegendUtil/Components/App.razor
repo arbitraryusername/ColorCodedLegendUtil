@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="app.css" />
     <link rel="stylesheet" href="ColorCodedLegendUtil.styles.css" />
-    <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet />
 </head>
 
@@ -16,16 +15,20 @@
     <Routes />
     <script>
         // define function for C#/JS interop 
-        window.getElementBoundingClientRect = (element) => {
+        window.getElementDetails = (element) => {
             if (element) {
                 const rect = element.getBoundingClientRect();
                 return {
-                    top: rect.top,
-                    left: rect.left,
-                    bottom: rect.bottom,
-                    right: rect.right,
-                    width: rect.width,
-                    height: rect.height
+                    boundingRect: {
+                        top: rect.top,
+                        left: rect.left,
+                        bottom: rect.bottom,
+                        right: rect.right,
+                        width: rect.width,
+                        height: rect.height
+                    },
+                    naturalWidth: element.naturalWidth,
+                    naturalHeight: element.naturalHeight
                 };
             }
             return null;

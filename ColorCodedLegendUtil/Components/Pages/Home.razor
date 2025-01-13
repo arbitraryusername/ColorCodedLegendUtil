@@ -6,19 +6,23 @@
 @rendermode InteractiveServer
 @using System.Net.Http.Json
 
-<h5>Choose an image, then click on a colored area on the image. A marker will be placed on the image, and an arrow will point to the corresponding region in the legend.</h5>
+<div class="px-4">
+    <h5>
+        Choose an image, then click on a colored area on the image. A marker will be placed on the image, and an arrow will point to the corresponding region in the legend.
+    </h5>
 
-<select @bind="SelectedImage">
-    <option disabled selected value="">-- Your Images --</option>
-    @foreach (var name in ImageNames)
-    {
-        <option value="@name">@name</option>
-    }
-</select>
+    <select @bind="SelectedImage">
+        <option disabled selected value="">-- Your Images --</option>
+        @foreach (var name in ImageNames)
+        {
+            <option value="@name">@name</option>
+        }
+    </select>
+</div>
 
 @if (!string.IsNullOrEmpty(SelectedImage))
 {
-    <div style="display: inline-block; width: 100vw; overflow: scroll; position: relative;">
+    <div style="display: inline-block; width: 100vw; position: relative;">
         <!-- Base image -->
         <img src="@ImageSrc"
              @onclick="OnImageClick"
@@ -76,36 +80,67 @@
         if (string.IsNullOrEmpty(SelectedImage))
             return;
 
-        // Get the bounding rectangle of the image
-        BoundingClientRect? rect = await JS.InvokeAsync<BoundingClientRect>(
-            "getElementBoundingClientRect", BaseImageRef);
-
-        if (rect == null)
+        try
         {
-            // Handle the case where rect could not be retrieved
-            return;
+            // Get the bounding rectangle and natural size of the image
+            ImageDetails? details = await JS.InvokeAsync<ImageDetails>(
+                "getElementDetails", BaseImageRef);
+
+            if (details == null)
+            {
+                // Handle the case where details could not be retrieved
+                Console.Error.WriteLine("Could not retrieve image details.");
+                return;
+            }
+
+            // Calculate scaling factors
+            double scaleX = details.NaturalWidth / details.BoundingRect.Width;
+            double scaleY = details.NaturalHeight / details.BoundingRect.Height;
+
+            // Calculate the click position relative to the image
+            double relativeX = e.ClientX - details.BoundingRect.Left;
+            double relativeY = e.ClientY - details.BoundingRect.Top;
+
+            // Adjust for scaling
+            double adjustedX = relativeX * scaleX;
+            double adjustedY = relativeY * scaleY;
+
+            // Ensure coordinates are within the natural dimensions
+            adjustedX = Math.Clamp(adjustedX, 0, details.NaturalWidth);
+            adjustedY = Math.Clamp(adjustedY, 0, details.NaturalHeight);
+
+            var coords = new { X = (int)adjustedX, Y = (int)adjustedY };
+
+            var clientApi = HttpClientFactory.CreateClient("ServerAPI");
+            var response = await clientApi.PostAsJsonAsync($"api/images/{SelectedImage}/click", coords);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var svgBytes = await response.Content.ReadAsByteArrayAsync();
+                var base64Svg = Convert.ToBase64String(svgBytes);
+                SvgOverlaySrc = $"data:image/svg+xml;base64,{base64Svg}";
+            }
+            else
+            {
+                // Handle error if needed
+                SvgOverlaySrc = null;
+                Console.Error.WriteLine($"Failed to post click coordinates: {response.ReasonPhrase}");
+            }
         }
-
-        // Calculate the absolute X and Y by subtracting the image's top-left position from the click position
-        double absoluteX = e.ClientX - rect.Left;
-        double absoluteY = e.ClientY - rect.Top;
-
-        var coords = new { X = (int)absoluteX, Y = (int)absoluteY };
-
-        var clientApi = HttpClientFactory.CreateClient("ServerAPI");
-        var response = await clientApi.PostAsJsonAsync($"api/images/{SelectedImage}/click", coords);
-
-        if (response.IsSuccessStatusCode)
+        catch (Exception ex)
         {
-            var svgBytes = await response.Content.ReadAsByteArrayAsync();
-            var base64Svg = Convert.ToBase64String(svgBytes);
-            SvgOverlaySrc = $"data:image/svg+xml;base64,{base64Svg}";
-        }
-        else
-        {
-            // Handle error if needed
+            // Handle exceptions as needed
             SvgOverlaySrc = null;
+            Console.Error.WriteLine($"An error occurred: {ex.Message}");
         }
+    }
+
+    // C# class to represent the image details returned from JavaScript
+    public class ImageDetails
+    {
+        public BoundingClientRect BoundingRect { get; set; }
+        public int NaturalWidth { get; set; }
+        public int NaturalHeight { get; set; }
     }
 
     // C# class to represent the bounding rectangle
