@@ -1,11 +1,12 @@
 ﻿@page "/"
-@using System.Net.Http.Json
-@inject HttpClient Http
 @inject IHttpClientFactory HttpClientFactory
+@rendermode InteractiveServer
+@* @attribute [StreamRendering] *@
+@using System.Net.Http.Json
 
 <h3>Choose an Image</h3>
 
-<select @onchange="OnImageSelected">
+<select @bind="SelectedImage">
     <option disabled selected value="">-- Your Images --</option>
     @foreach (var name in ImageNames)
     {
@@ -31,9 +32,27 @@
 
 @code {
     private List<string> ImageNames = new();
-    private string? SelectedImage;
+    
     private string? ImageSrc;
     private string? SvgOverlaySrc;
+
+    private string? selectedImage;
+    private string? SelectedImage
+    {
+        get => selectedImage;
+        set
+        {
+            if (selectedImage != value)
+            {
+                selectedImage = value;
+                if (!string.IsNullOrEmpty(selectedImage))
+                {
+                    ImageSrc = $"/api/images/{selectedImage}";
+                    SvgOverlaySrc = null;
+                }
+            }
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -42,16 +61,6 @@
         if (names is not null)
         {
             ImageNames = names;
-        }
-    }
-
-    private async Task OnImageSelected(ChangeEventArgs e)
-    {
-        SelectedImage = e.Value?.ToString();
-        if (!string.IsNullOrEmpty(SelectedImage))
-        {
-            ImageSrc = $"api/images/{SelectedImage}";
-            SvgOverlaySrc = null;
         }
     }
 
@@ -73,7 +82,7 @@
         }
         else
         {
-            // handle error if needed
+            // Handle error if needed
             SvgOverlaySrc = null;
         }
     }
