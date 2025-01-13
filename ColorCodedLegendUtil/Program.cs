@@ -174,7 +174,7 @@ app.MapPost("api/images/{imageName}/click", async (
     sb.AppendLine($$"""
 <svg width="{{width}}" height="{{height}}" viewBox="0 0 {{width}} {{height}}" xmlns="http://www.w3.org/2000/svg">
     <!-- Marker at clicked location -->
-    <circle cx="{{click.X}}" cy="{{click.Y}}" r="5" fill="red" />
+    <circle cx="{{click.X}}" cy="{{click.Y}}" r="5" fill="black" />
 """);
 
     // If there's a bounding box, draw it
@@ -189,7 +189,7 @@ app.MapPost("api/images/{imageName}/click", async (
 
         sb.AppendLine($$"""
     <rect x="{{x1}}" y="{{y1}}" width="{{rectWidth}}" height="{{rectHeight}}"
-          fill="none" stroke="lime" stroke-width="3" />
+          fill="none" stroke="black" stroke-width="3" />
 """);
     }
 

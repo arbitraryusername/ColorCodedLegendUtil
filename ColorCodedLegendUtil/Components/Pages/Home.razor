@@ -1,7 +1,9 @@
-﻿@page "/"
+﻿<!-- ColorCodedLegendUtil/Components/Pages/Home.razor -->
+@page "/"
 @inject IHttpClientFactory HttpClientFactory
+@inject IJSRuntime JS
+
 @rendermode InteractiveServer
-@* @attribute [StreamRendering] *@
 @using System.Net.Http.Json
 
 <h5>Choose an image, then click on a colored area on the image. A marker will be placed on the image, and an arrow will point to the corresponding region in the legend.</h5>
@@ -16,23 +18,26 @@
 
 @if (!string.IsNullOrEmpty(SelectedImage))
 {
-    <div style="display: inline-block; width: 100vw; overflow: scroll;">
+    <div style="display: inline-block; width: 100vw; overflow: scroll; position: relative;">
         <!-- Base image -->
         <img src="@ImageSrc"
              @onclick="OnImageClick"
-             style="" />
+             style="max-width: 100%; height: auto;"
+             @ref="BaseImageRef" />
 
         <!-- SVG overlay (if we have one) -->
         @if (!string.IsNullOrEmpty(SvgOverlaySrc))
         {
-            <img src="@SvgOverlaySrc" style="position: absolute; left: 0; top: 0;" />
+            <img src="@SvgOverlaySrc"
+                 @onclick="OnImageClick"
+                 style="position: absolute; left: 0; top: 0; max-width: 100%; height: auto;" />
         }
     </div>
 }
 
 @code {
     private List<string> ImageNames = new();
-    
+
     private string? ImageSrc;
     private string? SvgOverlaySrc;
 
@@ -54,6 +59,8 @@
         }
     }
 
+    private ElementReference BaseImageRef;
+
     protected override async Task OnInitializedAsync()
     {
         var client = HttpClientFactory.CreateClient("ServerAPI");
@@ -69,10 +76,24 @@
         if (string.IsNullOrEmpty(SelectedImage))
             return;
 
-        var coords = new { X = (int)e.OffsetX, Y = (int)e.OffsetY };
+        // Get the bounding rectangle of the image
+        BoundingClientRect? rect = await JS.InvokeAsync<BoundingClientRect>(
+            "getElementBoundingClientRect", BaseImageRef);
 
-        var client = HttpClientFactory.CreateClient("ServerAPI");
-        var response = await client.PostAsJsonAsync($"api/images/{SelectedImage}/click", coords);
+        if (rect == null)
+        {
+            // Handle the case where rect could not be retrieved
+            return;
+        }
+
+        // Calculate the absolute X and Y by subtracting the image's top-left position from the click position
+        double absoluteX = e.ClientX - rect.Left;
+        double absoluteY = e.ClientY - rect.Top;
+
+        var coords = new { X = (int)absoluteX, Y = (int)absoluteY };
+
+        var clientApi = HttpClientFactory.CreateClient("ServerAPI");
+        var response = await clientApi.PostAsJsonAsync($"api/images/{SelectedImage}/click", coords);
 
         if (response.IsSuccessStatusCode)
         {
@@ -85,5 +106,16 @@
             // Handle error if needed
             SvgOverlaySrc = null;
         }
+    }
+
+    // C# class to represent the bounding rectangle
+    public class BoundingClientRect
+    {
+        public double Top { get; set; }
+        public double Left { get; set; }
+        public double Bottom { get; set; }
+        public double Right { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
     }
 }
