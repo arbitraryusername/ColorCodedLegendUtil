@@ -3,37 +3,37 @@
     {
       "file_name": "max_wind_speed_2_minutes.png",
       "legend_bbox": [
-        220,
-        1086,
-        1512,
-        1160
+        225,
+        1092,
+        1506,
+        1154
       ]
     },
     {
       "file_name": "visibility_miles.png",
       "legend_bbox": [
-        886,
-        145,
-        930,
-        606
+        893,
+        152,
+        923,
+        602
       ]
     },
     {
       "file_name": "temperature_at_2m.png",
       "legend_bbox": [
-        1077,
-        47,
-        1093,
-        795
+        1081,
+        53,
+        1090,
+        791
       ]
     },
     {
       "file_name": "geopotential_height_500mb.png",
       "legend_bbox": [
-        1233,
-        58,
-        1252,
-        929
+        1237,
+        63,
+        1248,
+        924
       ]
     }
   ]
