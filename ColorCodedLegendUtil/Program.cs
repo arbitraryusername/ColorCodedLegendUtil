@@ -177,14 +177,13 @@ app.MapPost("api/images/{imageName}/click", async (
     // Get the color of the clicked pixel
     var pixelColor = image[click.X, click.Y];
 
-
     // Start building the SVG
     var sb = new StringBuilder();
     sb.AppendLine($$"""
-    <svg width="{{width}}" height="{{height}}" viewBox="0 0 {{width}} {{height}}" xmlns="http://www.w3.org/2000/svg">
-        <!-- Marker at clicked location -->
-        <circle cx="{{click.X}}" cy="{{click.Y}}" r="5" fill="black" />
-    """);
+<svg width="{{width}}" height="{{height}}" viewBox="0 0 {{width}} {{height}}" xmlns="http://www.w3.org/2000/svg">
+    <!-- Marker at clicked location -->
+    <circle cx="{{click.X}}" cy="{{click.Y}}" r="6" fill="white" stroke="black" stroke-width="2" />
+""");
 
     // If there's a bounding box, process further
     if (record.LegendBoundingBox is { Length: 4 })
@@ -198,9 +197,9 @@ app.MapPost("api/images/{imageName}/click", async (
 
         // Draw the legend bounding box
         sb.AppendLine($$"""
-        <rect x="{{x1}}" y="{{y1}}" width="{{rectWidth}}" height="{{rectHeight}}"
-              fill="none" stroke="black" stroke-width="2" />
-        """);
+    <rect x="{{x1}}" y="{{y1}}" width="{{rectWidth}}" height="{{rectHeight}}"
+          fill="none" stroke="black" stroke-width="2" />
+    """);
 
         bool ColorsAreSimilar(Rgba32 color1, Rgba32 color2)
         {
@@ -235,23 +234,30 @@ app.MapPost("api/images/{imageName}/click", async (
             double avgX = matchingPixels.Average(p => p.x);
             double avgY = matchingPixels.Average(p => p.y);
 
-            // Arrow marker definition with tip at (0, 3.5)
+            // Arrow marker definition with white fill and black stroke
             sb.AppendLine($$"""
-            <!-- Arrow marker definition -->
-            <defs>
-                <marker id="arrowhead" markerWidth="10" markerHeight="7" 
-                        refX="5" refY="3.5" orient="auto">
-                    <polygon points="-5 0, 5 3.5, -5 7" fill="black" />
-                </marker>
-            </defs>
-            """);
+        <!-- Arrow marker definition -->
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                    refX="5" refY="3.5" orient="auto">
+                <polygon points="-5 0, 5 3.5, -5 7" fill="white" stroke="black" stroke-width="1" />
+            </marker>
+        </defs>
+        """);
 
-            // Draw the arrow from clicked point to average position with updated marker
+            // Draw the black outline line (thicker)
             sb.AppendLine($$"""
-            <!-- Arrow from clicked point to legend -->
-            <line x1="{{click.X}}" y1="{{click.Y}}" x2="{{avgX}}" y2="{{avgY}}"
-                    stroke="black" stroke-width="3" marker-end="url(#arrowhead)" />
-            """);
+        <!-- Arrow outline line -->
+        <line x1="{{click.X}}" y1="{{click.Y}}" x2="{{avgX}}" y2="{{avgY}}"
+                stroke="black" stroke-width="4" marker-end="url(#arrowhead)" />
+        """);
+
+            // Draw the white interior line (thinner)
+            sb.AppendLine($$"""
+        <!-- Arrow interior line -->
+        <line x1="{{click.X}}" y1="{{click.Y}}" x2="{{avgX}}" y2="{{avgY}}"
+                stroke="white" stroke-width="2" marker-end="url(#arrowhead)" />
+        """);
         }
         else
         {
