@@ -149,21 +149,21 @@ app.MapPost("api/images/{imageName}/click", async (
     IImageRepository repo,
     IWebHostEnvironment env) =>
 {
-    // 1) Check we have metadata for this image
+    // Check we have metadata for this image
     var record = await repo.GetAsync(imageName);
     if (record is null)
     {
         return Results.NotFound($"No metadata found for image {imageName}.");
     }
 
-    // 2) Verify the image file exists
+    // Verify the image file exists
     var fullPath = Path.Combine(env.WebRootPath, "images", imageName);
     if (!File.Exists(fullPath))
     {
         return Results.NotFound($"Image file {imageName} not found on disk.");
     }
 
-    // 3) Load the image using ImageSharp
+    // Load the image using ImageSharp
     using var image = Image.Load<Rgba32>(fullPath);
     int width = image.Width;
     int height = image.Height;
@@ -177,21 +177,6 @@ app.MapPost("api/images/{imageName}/click", async (
     // Get the color of the clicked pixel
     var pixelColor = image[click.X, click.Y];
 
-    // 4) Determine if the color is a shade of gray
-    bool IsGray(Rgba32 color)
-    {
-        int r = color.R;
-        int g = color.G;
-        int b = color.B;
-
-        int max = Math.Max(r, Math.Max(g, b));
-        int min = Math.Min(r, Math.Min(g, b));
-
-        int threshold = 15; // Adjust as needed
-        return (max - min) < threshold;
-    }
-
-    bool isGray = false; // IsGray(pixelColor);
 
     // Start building the SVG
     var sb = new StringBuilder();
@@ -214,67 +199,63 @@ app.MapPost("api/images/{imageName}/click", async (
         // Draw the legend bounding box
         sb.AppendLine($$"""
         <rect x="{{x1}}" y="{{y1}}" width="{{rectWidth}}" height="{{rectHeight}}"
-              fill="none" stroke="black" stroke-width="3" />
+              fill="none" stroke="black" stroke-width="2" />
         """);
 
-        if (!isGray)
+        bool ColorsAreSimilar(Rgba32 color1, Rgba32 color2)
         {
-            bool ColorsAreSimilar(Rgba32 color1, Rgba32 color2)
-            {
-                int threshold = 10; // Adjust as needed to determine color similarity
-                int diffR = Math.Abs(color1.R - color2.R);
-                int diffG = Math.Abs(color1.G - color2.G);
-                int diffB = Math.Abs(color1.B - color2.B);
+            int threshold = 15; // Adjust as needed to determine color similarity
+            int diffR = Math.Abs(color1.R - color2.R);
+            int diffG = Math.Abs(color1.G - color2.G);
+            int diffB = Math.Abs(color1.B - color2.B);
 
-                return diffR < threshold && diffG < threshold && diffB < threshold;
-            }
+            return diffR < threshold && diffG < threshold && diffB < threshold;
+        }
 
-            // 5) Search within the legend bounding box for matching color pixels
-            var matchingPixels = new List<(int x, int y)>();
-            for (int y = (int)y1; y < (int)y2; y++)
+        // Search within the legend bounding box for matching color pixels
+        var matchingPixels = new List<(int x, int y)>();
+        for (int y = (int)y1; y < (int)y2; y++)
+        {
+            for (int x = (int)x1; x < (int)x2; x++)
             {
-                for (int x = (int)x1; x < (int)x2; x++)
+                if (x >= 0 && x < width && y >= 0 && y < height)
                 {
-                    if (x >= 0 && x < width && y >= 0 && y < height)
+                    var currentColor = image[x, y];
+                    if (ColorsAreSimilar(pixelColor, currentColor))
                     {
-                        var currentColor = image[x, y];
-                        if (ColorsAreSimilar(pixelColor, currentColor))
-                        {
-                            matchingPixels.Add((x, y));
-                        }
+                        matchingPixels.Add((x, y));
                     }
                 }
             }
+        }
 
-            if (matchingPixels.Count > 0)
-            {
-                // Calculate the center of the matching region
-                double avgX = matchingPixels.Average(p => p.x);
-                double avgY = matchingPixels.Average(p => p.y);
+        if (matchingPixels.Count > 0)
+        {
+            // Calculate the center of the matching region
+            double avgX = matchingPixels.Average(p => p.x);
+            double avgY = matchingPixels.Average(p => p.y);
 
-                // 6) Determine the arrow orientation and direction
-                bool isLegendWider = rectWidth >= rectHeight;
-                bool legendInRightHalf = (x1 + rectWidth / 2) > (width / 2);
-                bool legendInBottomHalf = (y1 + rectHeight / 2) > (height / 2);
+            // Arrow marker definition with tip at (0, 3.5)
+            sb.AppendLine($$"""
+            <!-- Arrow marker definition -->
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                        refX="5" refY="3.5" orient="auto">
+                    <polygon points="-5 0, 5 3.5, -5 7" fill="black" />
+                </marker>
+            </defs>
+            """);
 
-                // Arrow marker definition
-                sb.AppendLine($$"""
-        <!-- Arrow marker definition -->
-        <defs>
-            <marker id="arrowhead" markerWidth="10" markerHeight="7" 
-                    refX="0" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="black" />
-            </marker>
-        </defs>
-        """);
-
-                // Draw the arrow
-                sb.AppendLine($$"""
-        <!-- Arrow from clicked point to legend -->
-        <line x1="{{click.X}}" y1="{{click.Y}}" x2="{{avgX}}" y2="{{avgY}}"
-              stroke="black" stroke-width="2" marker-end="url(#arrowhead)" />
-        """);
-            }
+            // Draw the arrow from clicked point to average position with updated marker
+            sb.AppendLine($$"""
+            <!-- Arrow from clicked point to legend -->
+            <line x1="{{click.X}}" y1="{{click.Y}}" x2="{{avgX}}" y2="{{avgY}}"
+                    stroke="black" stroke-width="3" marker-end="url(#arrowhead)" />
+            """);
+        }
+        else
+        {
+            Console.WriteLine($"No matching pixels found in the legend bounding box matching color {pixelColor}");
         }
     }
 
@@ -294,6 +275,5 @@ app.UseAntiforgery();
 // Map Razor Components
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
-
 
 app.Run();
