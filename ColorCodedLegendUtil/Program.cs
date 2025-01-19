@@ -1,3 +1,4 @@
+using ColorCodedLegendUtil;
 using ColorCodedLegendUtil.Components;
 using ColorCodedLegendUtil.Data;
 using ColorCodedLegendUtil.DTO;
@@ -7,16 +8,31 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 // Top-level statements only below
 var builder = WebApplication.CreateBuilder(args);
 
+// Get app configuration
+builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("ApiSettings"));
+
 builder.Services.AddHttpClient("ServerAPI", client =>
 {
-    // For local dev, you might do:
-    client.BaseAddress = new Uri("https://localhost:7166/");
-    // or whichever port your app is actually using
+    var apiSettings = builder.Configuration.GetSection("ApiSettings").Get<ApiSettings>();
+    if (apiSettings == null)
+    {
+        throw new InvalidOperationException("ApiSettings section is missing or invalid in the configuration.");
+    }
+    client.BaseAddress = new Uri(uriString: apiSettings.BaseUrl);
+
+    // Configure Kestrel with the certificate
+
+    //builder.WebHost.ConfigureKestrel(options =>
+    //{
+    //    options.ListenAnyIP(5001, listenOptions =>
+    //    {
+    //        listenOptions.UseHttps("/home/craig/.aspnet/https/aspnetapp.pfx", "craig");
+    //    });
+    //});
 });
 
 // 1. EF Core (SQLite)
@@ -128,6 +144,7 @@ app.MapGet("api/images", async (IImageRepository repo) =>
 // Endpoint #2: Get a specific image file from wwwroot/images/
 app.MapGet("api/images/{imageName}", async (string imageName, IWebHostEnvironment env) =>
 {
+    // TODO: make this async
     var fullPath = Path.Combine(env.WebRootPath, "images", imageName);
     if (!File.Exists(fullPath))
     {
@@ -240,7 +257,7 @@ app.MapPost("api/images/{imageName}/click", async (
         <defs>
             <marker id="arrowhead" markerWidth="10" markerHeight="7" 
                     refX="5" refY="3.5" orient="auto">
-                <polygon points="-5 0, 5 3.5, -5 7" fill="white" stroke="black" stroke-width="1" />
+                <polygon points="-5 0, 5 3.5, -5 7, -5 0" fill="white" stroke="black" stroke-width="1" />
             </marker>
         </defs>
         """);
