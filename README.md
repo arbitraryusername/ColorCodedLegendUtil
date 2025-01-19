@@ -1,5 +1,7 @@
 # ColorCodedLegendUtil
 
+App URL: https://weathermaphelper.azurewebsites.net/
+
 Video demo: https://drive.google.com/file/d/1rV0Lm-8-_TG6Rnig5BqyZmxx2JDrkesv/view?usp=sharing
 
 Weather maps are usually color coded, making them not very accessible to people with color blindness. This app helps with that by drawing an arrow from the point the user clicked to the region on the legend corresponding to the clicked pixel's color.
